@@ -120,3 +120,5 @@ This project is released under the MIT License. See `LICENSE` file for details.
 ## Acknowledgments
 
 This project was created as part of the CSC/CPE138 Computer Network Fundamentals course at Sacramento State University.
+
+README created using generative AI.
