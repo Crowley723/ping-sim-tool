@@ -1,3 +1,9 @@
+/*
+ * File: pingsvr.c
+ * Author: Brynn Crowley
+ * Date: 02/2025
+ * Description: This file contains server implementation of the UDP ping simulation tool with random packet loss.
+ */
 #include <errno.h>
 #include <signal.h>
 #include <stdbool.h>
@@ -11,12 +17,13 @@
 #include <asm-generic/errno-base.h>
 
 #define BUFLEN 512
+#define PERCENT_DROPPED_PACKETS 30
 
 void die(const char *s);
-void handle_sigint(int sig);
+void handle_sigint();
 bool shouldDropPing();
 
-volatile bool sigint = false;
+volatile bool doExit = false;
 
 
 int main(const int argc, char *argv[]) {
@@ -64,18 +71,17 @@ int main(const int argc, char *argv[]) {
     close(server_fd);
     die("bind");
   }
+  printf("Starting listening on port %d\n", port);
 
   char buf[BUFLEN];
   struct sockaddr_in client;
   socklen_t client_length = sizeof(client);
 
-  while (!sigint) {
-    printf("Waiting for data...\n");
+  while (!doExit) {
     fflush(stdout);
     memset(buf, 0, BUFLEN);
 
     const ssize_t recv_len = recvfrom(server_fd, buf, BUFLEN, 0, (struct sockaddr *) &client, &client_length);
-
     if (recv_len < 0) {
       if (errno == EINTR) {
         continue;
@@ -85,12 +91,12 @@ int main(const int argc, char *argv[]) {
       die("recvfrom()");
     }
 
-    printf("Received packet from %s:%d\n", inet_ntoa(client.sin_addr), ntohs(client.sin_port));
-    printf("Data: %s\n", buf);
 
     if (shouldDropPing()) {
-      printf("Packet loss sucks, huh?\n");
+      printf("Packet loss - Message dropped.\n");
       continue;
+    } else {
+      printf("Received packet from %s:%d: %s \n", inet_ntoa(client.sin_addr), ntohs(client.sin_port), buf);
     }
 
     const char* pong = "PONG";
@@ -107,15 +113,27 @@ int main(const int argc, char *argv[]) {
 }
 
 
+/**
+* The die method calls perror then exits with EXIT_FAILURE.
+* Parameters:
+* - s: The string supplied to perror
+*/
 void die(const char *s) {
   perror(s);
   exit(EXIT_FAILURE);
 }
 
-void handle_sigint(int sig) {
-  sigint = true;
+/**
+* The handle_sigint method is a signal handler for the SIGINT signal. This method sets a flag that causes the program to cleanup and exit gracefully.
+*/
+void handle_sigint() {
+  doExit = true;
 }
 
+/**
+ * The shouldDropPing() Function
+ * @return if the current packet should be dropped.
+ */
 bool shouldDropPing() {
-  return ((random() % 100) < 30);
+  return ((random() % 100) < PERCENT_DROPPED_PACKETS);
 }
